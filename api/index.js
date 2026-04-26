@@ -4,7 +4,6 @@ export const config = {
 
 const TARGET_BASE = (process.env.TARGET_DOMAIN || "").replace(/\/$/, "");
 
-// Headers that truly break proxying
 const STRIP_HEADERS = new Set([
   "host",
   "proxy-authenticate",
@@ -25,11 +24,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    // ✅ Robust URL parsing
     const url = new URL(req.url, `http://${req.headers.host}`);
     const targetUrl = TARGET_BASE + url.pathname + url.search;
 
-    // ✅ Copy headers safely
     const headers = {};
     let clientIp = null;
 
@@ -56,33 +53,31 @@ export default async function handler(req, res) {
       headers["x-forwarded-for"] = clientIp;
     }
 
-    // ✅ Proper raw body extraction (fixes 502)
+    // ✅ FIX: Proper body handling
     let body = undefined;
     if (req.method !== "GET" && req.method !== "HEAD") {
       body = await getRawBody(req);
     }
 
-    // ✅ Forward request
+    // ✅ FIX: duplex required in Node fetch
     const upstream = await fetch(targetUrl, {
       method: req.method,
       headers,
       body,
+      duplex: "half",
       redirect: "manual",
     });
 
-    // ✅ Forward response headers
+    // ✅ Copy headers
     upstream.headers.forEach((value, key) => {
       res.setHeader(key, value);
     });
 
     res.status(upstream.status);
 
-    // ✅ Stream response
-    if (upstream.body) {
-      upstream.body.pipe(res);
-    } else {
-      res.end();
-    }
+    // ✅ FIX: No pipe — use buffer
+    const buffer = Buffer.from(await upstream.arrayBuffer());
+    res.send(buffer);
 
   } catch (err) {
     console.error("Relay error:", err);
@@ -90,13 +85,10 @@ export default async function handler(req, res) {
   }
 }
 
-// ✅ Helper to properly read request body
 async function getRawBody(req) {
   const chunks = [];
-
   for await (const chunk of req) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   }
-
   return Buffer.concat(chunks);
 }
