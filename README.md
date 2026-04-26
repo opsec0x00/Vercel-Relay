@@ -1,4 +1,4 @@
-# vercel-xhttp-relay LOL!
+# vercel-xhttp-relay LOLz
 
 A minimal **Vercel Edge Function** that relays **XHTTP** traffic to your
 backend Xray/V2Ray server. Use Vercel's globally distributed edge network
