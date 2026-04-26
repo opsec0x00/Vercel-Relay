@@ -4,16 +4,14 @@ export const config = {
 
 const TARGET_BASE = (process.env.TARGET_DOMAIN || "").replace(/\/$/, "");
 
+// Headers that truly break proxying
 const STRIP_HEADERS = new Set([
   "host",
-  "connection",
-  "keep-alive",
   "proxy-authenticate",
   "proxy-authorization",
   "te",
   "trailer",
   "transfer-encoding",
-  "upgrade",
   "forwarded",
   "x-forwarded-host",
   "x-forwarded-proto",
@@ -27,7 +25,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // ✅ Proper URL parsing
+    // ✅ Robust URL parsing
     const url = new URL(req.url, `http://${req.headers.host}`);
     const targetUrl = TARGET_BASE + url.pathname + url.search;
 
@@ -58,22 +56,28 @@ export default async function handler(req, res) {
       headers["x-forwarded-for"] = clientIp;
     }
 
+    // ✅ Proper raw body extraction (fixes 502)
+    let body = undefined;
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      body = await getRawBody(req);
+    }
+
     // ✅ Forward request
     const upstream = await fetch(targetUrl, {
       method: req.method,
       headers,
-      body: req.method !== "GET" && req.method !== "HEAD" ? req : undefined,
+      body,
       redirect: "manual",
     });
 
-    // ✅ Copy response headers
+    // ✅ Forward response headers
     upstream.headers.forEach((value, key) => {
       res.setHeader(key, value);
     });
 
     res.status(upstream.status);
 
-    // ✅ Stream response properly
+    // ✅ Stream response
     if (upstream.body) {
       upstream.body.pipe(res);
     } else {
@@ -81,7 +85,18 @@ export default async function handler(req, res) {
     }
 
   } catch (err) {
-    console.error("relay error:", err);
+    console.error("Relay error:", err);
     res.status(502).send("Bad Gateway: Tunnel Failed");
   }
+}
+
+// ✅ Helper to properly read request body
+async function getRawBody(req) {
+  const chunks = [];
+
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  return Buffer.concat(chunks);
 }
