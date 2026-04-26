@@ -4,4 +4,5 @@
   "description": "Edge-runtime XHTTP relay for Xray/V2Ray on Vercel",
   "private": true,
   "license": "MIT"
+  "type": "module"
 }
