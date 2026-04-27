@@ -1,4 +1,6 @@
 {
-  "name": "xhttp-relay",
-  "version": "1.0.0"
+  "name": "vercel-xhttp-relay",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module"
 }

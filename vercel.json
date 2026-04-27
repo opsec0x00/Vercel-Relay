@@ -1,5 +1,7 @@
 {
+  "version": 2,
   "rewrites": [
-    { "source": "/:path*", "destination": "https://xray.breached.tf/:path*" }
-  ]
+    { "source": "/(.*)", "destination": "/api/index" }
+  ],
+  "trailingSlash": false
 }
